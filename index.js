@@ -79,8 +79,8 @@ var app = express();
 app.use(compress());
 
 app.get('/', function(req, res){
-	res.send('<html><body>http listening on smtpport ' + server.address().port
-	+ '<br>smtp server listening on smtpport ' + smtpport
+	res.send('<html><body>HTTP listening on port ' + server.address().port
+	+ '<br>SMTP server listening on port ' + smtpport
 	+ '<br><br>API'
 	+ '<br><a href="/api/email">All Emails ( /api/email )</a>'
 	+ '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
