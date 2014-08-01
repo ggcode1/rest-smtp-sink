@@ -10,7 +10,7 @@ var MailParser = require("mailparser").MailParser;
 var db = require('knex')({
 	client: 'sqlite3',
 	connection: {
-		filename: './mymaildb.sqlite'
+		filename: './rest-smtp-sink.sqlite'
 	}
 });
 
@@ -35,16 +35,16 @@ db.schema.createTable('emails', function (table) {
 var smtp = simplesmtp.createServer({
 	enableAuthentication: true,
 	requireAuthentication: false,
-	SMTPBanner: 'E-mail!',
+	SMTPBanner: 'rest-smtp-sink',
 	disableDNSValidation: true
 });
 smtp.listen(smtpport);
-console.log('SMTP server listening on smtpport ' + smtpport);
+console.log('SMTP server listening on port ' + smtpport);
 
 smtp.on("startData", function(connection){
 	connection.mailparser = new MailParser();
 	connection.mailparser.on("end", function(mail_object){
-		connection.insertPromise = db('emails')
+		db('emails')
 		.insert({
 			"created_at": new Date() ,
 			"updated_at": new Date() ,
@@ -104,24 +104,11 @@ app.get('/api/email/latest', function(req, res, next){
 	.orderBy('id', 'desc')
 	.limit(1)
 	.then(function (resp) {
-		res.json(resp[0]);
-	})
-	.catch(next)
-});
-
-app.get('/api/email/:id/parsed', function(req, res, next){
-	db.select('*').from('emails')
-	.where('id', '=', req.params.id)
-	.then(function (resp) {
-		var mailparser = new MailParser();
-		mailparser.on("end", function(mail_object){
-			res.json(mail_object);
-		});
-		mailparser.on("error", function(err){
-			res.json(err);
-		});
-		mailparser.write(resp[0].content);
-		mailparser.end();
+		if (resp.length < 1) {
+			res.status(404).send('Not found')
+		} else {
+			res.json(resp[0]);
+		}
 	})
 	.catch(next)
 });
@@ -138,8 +125,6 @@ app.get('/api/email/:id', function(req, res, next){
 	})
 	.catch(next)
 });
-
-
 
 var server = app.listen(httpport, function() {
     console.log('HTTP server listening on port %d', server.address().port);
