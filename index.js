@@ -48,12 +48,12 @@ smtp.on("startData", function(connection){
 		.insert({
 			"created_at": new Date() ,
 			"updated_at": new Date() ,
-			'html': mail_object.html ,
-			'text': mail_object.text ,
+			'html': JSON.stringify(mail_object.html) ,
+			'text': JSON.stringify(mail_object.text) ,
 			'headers': JSON.stringify(mail_object.headers) ,
-			'subject': mail_object.subject ,
-			'messageId': mail_object.messageId ,
-			'priority': mail_object.priority ,
+			'subject': JSON.stringify(mail_object.subject) ,
+			'messageId': JSON.stringify(mail_object.messageId) ,
+			'priority': JSON.stringify(mail_object.priority) ,
 			'from': JSON.stringify(mail_object.from) ,
 			'to': JSON.stringify(mail_object.to)
 		})
@@ -62,6 +62,20 @@ smtp.on("startData", function(connection){
 		});
 	});
 });
+
+function deserialize(o) {
+	o.html = JSON.parse(o.html)
+	o.text = JSON.parse(o.text)
+	o.headers = JSON.parse(o.headers)
+	o.subject = JSON.parse(o.subject)
+	o.messageId = JSON.parse(o.messageId)
+	o.priority = JSON.parse(o.priority)
+	o.from = JSON.parse(o.from)
+	o.to = JSON.parse(o.to)
+
+	return o;
+}
+
 
 smtp.on("data", function(connection, chunk){
 	connection.mailparser.write(chunk);
@@ -93,11 +107,11 @@ app.get('/', function(req, res){
 app.get('/api/email', function(req, res, next){
 	db.select('*').from('emails')
 	.then(function (resp) {
+		resp.forEach(deserialize);
 		res.json(resp);
 	})
 	.catch(next)
 });
-
 
 app.get('/api/email/latest', function(req, res, next){
 	db.select('*').from('emails')
@@ -107,7 +121,7 @@ app.get('/api/email/latest', function(req, res, next){
 		if (resp.length < 1) {
 			res.status(404).send('Not found')
 		} else {
-			res.json(resp[0]);
+			res.json(deserialize(resp[0]));
 		}
 	})
 	.catch(next)
@@ -120,7 +134,7 @@ app.get('/api/email/:id', function(req, res, next){
 		if (resp.length < 1) {
 			res.status(404).send('Not found')
 		} else {
-			res.json(resp[0]);
+			res.json(deserialize(resp[0]));
 		}
 	})
 	.catch(next)
