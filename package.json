@@ -1,6 +1,6 @@
 {
   "name": "rest-smtp-sink",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Similar to FakeSMTP, rest-smtp-sink is a SMTP server and web server. It stores e-mails it receives in a SQLite database, and serves them via its own web server, with a RESTful API.",
   "main": "index.js",
   "scripts": {
@@ -17,11 +17,11 @@
   },
   "homepage": "https://github.com/llambda/rest-smtp-sink",
   "dependencies": {
-    "compression": "^1.2.1",
-    "express": "^4.10.4",
+    "compression": "^1.4.0",
+    "express": "^4.11.2",
     "knex": "^0.7.3",
-    "mailparser": "^0.4.6",
-    "simplesmtp": "^0.3.33",
+    "mailparser": "^0.4.8",
+    "simplesmtp": "^0.3.34",
     "sqlite3": "^3.0.4"
   }
 }
