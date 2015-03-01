@@ -197,11 +197,13 @@ RestSmtpSink.prototype.createWebServer = function () {
 			resp.forEach(self.deserialize);
 			resp.forEach(function (item) {
 				res.write(render_item(item));
+				res.flush();
 			});
 		});
 
 		var listener = function (item) {
 			res.write(render_item(item));
+			res.flush();
 		}
 
 		self.on('email', listener);
