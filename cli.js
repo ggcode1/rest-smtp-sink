@@ -15,7 +15,7 @@ program
 var RestSmtpSink = require('./index');
 
 var server = new RestSmtpSink(program);
-server.ee.on('info', function (info) {
+server.on('info', function (info) {
 	console.log('info: ' + info);
 })
 
