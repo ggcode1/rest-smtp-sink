@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+'use strict';
+
 var net = require('net');
 
 var StringDecoder = require('string_decoder').StringDecoder;
