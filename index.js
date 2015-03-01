@@ -163,7 +163,15 @@ RestSmtpSink.prototype.createWebServer = function () {
 	app.use(compress());
 
 	app.get('/', function(req, res){
-		res.write('<html><body>rest-smtp-sink'
+
+		res.set('Content-Type', 'text/html');
+
+
+		// Yes, this is valid HTML 5! According to the specs, the <html>, <head> and <body>
+		// tags can be omitted, but their respective DOM elements will still be there
+		// implicitly when a browser renders that markup.
+
+		res.write('rest-smtp-sink'
 			+ '<br><br>SMTP server listening on port ' + _.escape(self.smtpport)
 			+ '; HTTP listening on port ' + _.escape(self.httpport)
 			+ '<br>Note: This page dynamically updates as email arrives.'
@@ -174,6 +182,8 @@ RestSmtpSink.prototype.createWebServer = function () {
 			// + '<br><a href="/api/email/1">Email #1</a> ( /api/email/1 )'
 			// + '<br><a href="/api/email/2">Email #2</a> ( /api/email/2 )'
 			);
+
+		res.flush(); // make sure the above data gets sent, so it doesn't look like the page is hanging.
 
 		function render_item(item) {
 			return '<br><a href="/api/email/' + _.escape(item.id) + '">'
