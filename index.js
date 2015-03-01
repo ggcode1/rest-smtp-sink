@@ -9,6 +9,7 @@ var EventEmitter = require('events').EventEmitter;
 var knex = require('knex');
 var inherits = require('inherits');
 var _ = require('lodash');
+var JSONStream = require('JSONStream');
 
 module.exports = RestSmtpSink;
 
@@ -160,10 +161,13 @@ RestSmtpSink.prototype.createWebServer = function () {
 	app.use(compress());
 
 	app.get('/', function(req, res){
-		res.write('<html><body>HTTP listening on port ' + self.httpport
-			+ '<br>SMTP server listening on port ' + self.smtpport
+		res.write('<html><body>rest-smtp-sink'
+			+ '<br><br>SMTP server listening on port ' + _.escape(self.smtpport)
+			+ '; HTTP listening on port ' + _.escape(self.httpport)
+			+ '<br>Note: This page dynamically updates as email arrives.'
 			+ '<br><br>API'
 			+ '<br><a href="/api/email">All Emails ( /api/email )</a>'
+			+ '<br><a href="/api/email">All Email, streamed, may load faster ( /api/email/stream )</a>'
 			+ '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
 			// + '<br><a href="/api/email/1">Email #1</a> ( /api/email/1 )'
 			// + '<br><a href="/api/email/2">Email #2</a> ( /api/email/2 )'
@@ -196,6 +200,18 @@ RestSmtpSink.prototype.createWebServer = function () {
 			res.json(resp);
 		})
 		.catch(next)
+	});
+
+	app.get('/api/email/stream', function(req, res, next){
+		var stream = self.db.select('*').from('emails').stream()
+
+		stream.pipe(JSONStream.stringify('[',
+			',',
+			']')).pipe(res);
+
+		stream.on('end', function() {
+			res.end();
+		});
 	});
 
 	app.get('/api/email/latest', function(req, res, next){

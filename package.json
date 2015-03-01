@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/llambda/rest-smtp-sink",
   "dependencies": {
+    "JSONStream": "^0.10.0",
     "bluebird": "^2.9.13",
     "commander": "^2.6.0",
     "compression": "^1.4.1",
