@@ -21,6 +21,7 @@
     "bluebird": "^2.9.13",
     "commander": "^2.6.0",
     "compression": "^1.4.1",
+    "event-loop-monitor": "^0.1.0",
     "express": "^4.11.2",
     "inherits": "^2.0.1",
     "knex": "^0.7.3",
