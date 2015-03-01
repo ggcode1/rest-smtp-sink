@@ -34,6 +34,7 @@
     "rest-smtp-sink": "./cli.js"
   },
   "devDependencies": {
+    "casual": "^1.4.7",
     "pony": "^1.0.0"
   }
 }
