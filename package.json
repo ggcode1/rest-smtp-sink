@@ -23,6 +23,7 @@
     "express": "^4.11.2",
     "inherits": "^2.0.1",
     "knex": "^0.7.3",
+    "lodash": "^3.3.1",
     "mailparser": "^0.4.8",
     "simplesmtp": "^0.3.34",
     "sqlite3": "^3.0.5"
