@@ -1,28 +1,44 @@
 'use strict';
 
+var BPromise = require('bluebird');
 var simplesmtp = require('simplesmtp');
-var fs = require('fs');
+var fs = BPromise.promisifyAll(require('fs'));
 var compress = require('compression');
 var MailParser = require('mailparser').MailParser;
 var EventEmitter = require('events').EventEmitter;
+var knex = require('knex');
 
 module.exports = RestSmtpSink;
 
 function RestSmtpSink(options) {
-	this.ee = new EventEmitter();
-	this.smtpport = options.smtp || 2525;
-	this.httpport = options.listen || 2526;
-	var filename = options.file || 'rest-smtp-sink.sqlite';
+	var self = this;
+	self.ee = new EventEmitter();
+	self.smtpport = options.smtp || 2525;
+	self.httpport = options.listen || 2526;
+	self.filename = options.file || 'rest-smtp-sink.sqlite';
+}
 
-	this.db = require('knex')({
-		client: 'sqlite3',
-		connection: { filename: filename }
-	});
+RestSmtpSink.prototype.validateFile = function() {
+	var self = this;
+
+	return fs.openAsync(self.filename, 'r')
+	.then(function (fd) {
+		var buf = new Buffer(6);
+		return fs.readAsync(fd, buf, 0, 6, 0)
+		.then(function (obj) {
+			// obj of [bytesRead, buffer]
+			if (0 !== obj[1].compare(new Buffer('SQLite'))) {
+				throw new Error('File does not appear to be a SQLite database, aborting');
+			}
+		})
+	})
 }
 
 RestSmtpSink.prototype.start = function() {
 	var self = this;
-	return self.createSchema()
+
+	return self.validateFile().bind(self)
+	.then(self.createSchema)
 	.then(function () {
 		self.createSmtpSever();
 		self.smtp.listen(self.smtpport);
@@ -31,12 +47,22 @@ RestSmtpSink.prototype.start = function() {
 		self.server = self.createWebServer().listen(self.httpport, function() {
 			self.ee.emit('info', 'HTTP server listening on port ' + self.httpport);
 		});
-	})	
+
+		self.ee.on('error', function (error) {
+			throw error;
+		});
+	})
 }
 
 RestSmtpSink.prototype.createSchema = function () {
 	var self = this;
-	return this.db.schema.createTable('emails', function (table) {
+
+	self.db = knex({
+		client: 'sqlite3',
+		connection: { filename: self.filename }
+	});
+
+	return self.db.schema.createTable('emails', function (table) {
 		table.increments();
 		table.timestamps();
 		table.json('html');
@@ -53,22 +79,25 @@ RestSmtpSink.prototype.createSchema = function () {
 			self.ee.emit('info', err.message);
 		} else {
 			self.ee.emit('error', err);
+			throw err;
 		}
 	})
 }
 
 RestSmtpSink.prototype.createSmtpSever = function() {
-	this.smtp = simplesmtp.createServer({
+	var self = this;
+
+	self.smtp = simplesmtp.createServer({
 		enableAuthentication: true,
 		requireAuthentication: false,
 		SMTPBanner: 'rest-smtp-sink',
 		disableDNSValidation: true
 	});
 
-	this.smtp.on("startData", function(connection){
+	self.smtp.on("startData", function(connection){
 		connection.mailparser = new MailParser();
 		connection.mailparser.on("end", function(mail_object){
-			this.db('emails')
+			self.db('emails')
 			.insert({
 				"created_at": new Date() ,
 				"updated_at": new Date() ,
@@ -87,11 +116,11 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 		});
 	});
 
-	this.smtp.on("data", function(connection, chunk){
+	self.smtp.on("data", function(connection, chunk){
 		connection.mailparser.write(chunk);
 	});
 
-	this.smtp.on("dataReady", function(connection, callback){
+	self.smtp.on("dataReady", function(connection, callback){
 		connection.donecallback = callback;
 		connection.mailparser.end();
 	});
