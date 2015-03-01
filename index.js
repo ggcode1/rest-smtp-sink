@@ -16,6 +16,7 @@ module.exports = RestSmtpSink;
 inherits(RestSmtpSink, EventEmitter);
 
 function RestSmtpSink(options) {
+	EventEmitter.call(this);
 	var self = this;
 	self.smtpport = options.smtp || 2525;
 	self.httpport = options.listen || 2526;
@@ -54,10 +55,6 @@ RestSmtpSink.prototype.start = function() {
 
 		self.server = self.createWebServer().listen(self.httpport, function() {
 			self.emit('info', 'HTTP server listening on port ' + self.httpport);
-		});
-
-		self.on('error', function (error) {
-			throw error;
 		});
 	})
 }
@@ -103,6 +100,7 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 	});
 
 	self.smtp.on("startData", function(connection){
+
 		connection.mailparser = new MailParser();
 		connection.mailparser.on("end", function(mail_object){
 			self.db('emails')
@@ -115,8 +113,8 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 				'subject': JSON.stringify(mail_object.subject) ,
 				'messageId': JSON.stringify(mail_object.messageId) ,
 				'priority': JSON.stringify(mail_object.priority) ,
-				'from': JSON.stringify(mail_object.from) ,
-				'to': JSON.stringify(mail_object.to)
+				'from': JSON.stringify(connection.from) ,
+				'to': JSON.stringify(connection.to)
 			})
 			.then(function (record) {
 				// mail_object.id = record[0]; // primary key from DB
@@ -124,7 +122,7 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 				.select('*')
 				.where('id', '=', record[0])
 				.then(function (mail) {
-					self.emit('email', mail[0]);
+					self.emit('email', self.deserialize(mail[0]));
 				});
 
 				connection.donecallback(null, record);
@@ -183,13 +181,16 @@ RestSmtpSink.prototype.createWebServer = function () {
 			// + '<br><a href="/api/email/2">Email #2</a> ( /api/email/2 )'
 			);
 
+		res.write('<table><thead><tr><td>ID<td>To<td>From<td>Subject<td>Date</thead><tbody>');
+
 		res.flush(); // make sure the above data gets sent, so it doesn't look like the page is hanging.
 
 		function render_item(item) {
-			return '<br><a href="/api/email/' + _.escape(item.id) + '">'
-				// + JSON.stringify(item)
-				+ 'Email #' + _.escape(item.id) + ' created at: ' + _.escape(new Date(item.created_at))
-				+ '</a>';
+			return '<tr><td><a href="/api/email/' + _.escape(item.id) + '">' + _.escape(item.id) + '</a>'
+				+ '<td>' + _.escape(item.to)
+				+ '<td>' + _.escape(item.from)
+				+ '<td>' + _.escape(item.subject)
+				+ '<td>' + _.escape(new Date(item.created_at))
 		}
 
 		self.db.select('*').from('emails')
