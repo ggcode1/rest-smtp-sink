@@ -20,6 +20,8 @@ function RestSmtpSink(options) {
 	self.smtpport = options.smtp || 2525;
 	self.httpport = options.listen || 2526;
 	self.filename = options.file || 'rest-smtp-sink.sqlite';
+
+	this.setMaxListeners(Infinity);
 }
 
 RestSmtpSink.prototype.validateFile = function() {
@@ -188,9 +190,15 @@ RestSmtpSink.prototype.createWebServer = function () {
 			});
 		});
 
-		self.on('email', function (item) {
+		var listener = function (item) {
 			res.write(render_item(item));
-		});
+		}
+
+		self.on('email', listener);
+
+		req.on('close', function () {
+			self.removeListener('email', listener);
+		})
 	});
 
 	app.get('/api/email', function(req, res, next){
