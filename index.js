@@ -26,10 +26,10 @@ RestSmtpSink.prototype.start = function() {
 	.then(function () {
 		self.createSmtpSever();
 		self.smtp.listen(self.smtpport);
-		console.log('SMTP server listening on port ' + self.smtpport);
+		self.ee.emit('info', 'SMTP server listening on port ' + self.smtpport);
 
 		self.server = self.createWebServer().listen(self.httpport, function() {
-			console.log('HTTP server listening on port %d', self.httpport);
+			self.ee.emit('info', 'HTTP server listening on port ' + self.httpport);
 		});
 	})	
 }
@@ -49,9 +49,11 @@ RestSmtpSink.prototype.createSchema = function () {
 		table.json('to');
 	})
 	.catch(function (err) {
-		console.error(err);
-		console.log(self)
-		self.ee.emit('poop', err);
+		if (err.message.includes('SQLITE_ERROR: table "emails" already exists')) {
+			self.ee.emit('info', err.message);
+		} else {
+			self.ee.emit('error', err);
+		}
 	})
 }
 
