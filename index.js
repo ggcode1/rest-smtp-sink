@@ -7,12 +7,14 @@ var compress = require('compression');
 var MailParser = require('mailparser').MailParser;
 var EventEmitter = require('events').EventEmitter;
 var knex = require('knex');
+var inherits = require('inherits');
 
 module.exports = RestSmtpSink;
 
+inherits(RestSmtpSink, EventEmitter);
+
 function RestSmtpSink(options) {
 	var self = this;
-	self.ee = new EventEmitter();
 	self.smtpport = options.smtp || 2525;
 	self.httpport = options.listen || 2526;
 	self.filename = options.file || 'rest-smtp-sink.sqlite';
@@ -42,13 +44,13 @@ RestSmtpSink.prototype.start = function() {
 	.then(function () {
 		self.createSmtpSever();
 		self.smtp.listen(self.smtpport);
-		self.ee.emit('info', 'SMTP server listening on port ' + self.smtpport);
+		self.emit('info', 'SMTP server listening on port ' + self.smtpport);
 
 		self.server = self.createWebServer().listen(self.httpport, function() {
-			self.ee.emit('info', 'HTTP server listening on port ' + self.httpport);
+			self.emit('info', 'HTTP server listening on port ' + self.httpport);
 		});
 
-		self.ee.on('error', function (error) {
+		self.on('error', function (error) {
 			throw error;
 		});
 	})
@@ -76,9 +78,9 @@ RestSmtpSink.prototype.createSchema = function () {
 	})
 	.catch(function (err) {
 		if (err.message.includes('SQLITE_ERROR: table "emails" already exists')) {
-			self.ee.emit('info', err.message);
+			self.emit('info', err.message);
 		} else {
-			self.ee.emit('error', err);
+			self.emit('error', err);
 			throw err;
 		}
 	})
