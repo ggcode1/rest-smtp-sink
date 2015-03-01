@@ -32,5 +32,8 @@
   },
   "bin": {
     "rest-smtp-sink": "./cli.js"
+  },
+  "devDependencies": {
+    "pony": "^1.0.0"
   }
 }
