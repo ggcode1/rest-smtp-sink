@@ -8,6 +8,7 @@ var MailParser = require('mailparser').MailParser;
 var EventEmitter = require('events').EventEmitter;
 var knex = require('knex');
 var inherits = require('inherits');
+var _ = require('lodash');
 
 module.exports = RestSmtpSink;
 
@@ -114,8 +115,16 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 				'from': JSON.stringify(mail_object.from) ,
 				'to': JSON.stringify(mail_object.to)
 			})
-			.then(function (res) {
-				connection.donecallback(null, res);
+			.then(function (record) {
+				// mail_object.id = record[0]; // primary key from DB
+				self.db('emails')
+				.select('*')
+				.where('id', '=', record[0])
+				.then(function (mail) {
+					self.emit('email', mail[0]);
+				});
+
+				connection.donecallback(null, record);
 			});
 		});
 	});
@@ -151,15 +160,33 @@ RestSmtpSink.prototype.createWebServer = function () {
 	app.use(compress());
 
 	app.get('/', function(req, res){
-		res.send('<html><body>HTTP listening on port ' + self.httpport
+		res.write('<html><body>HTTP listening on port ' + self.httpport
 			+ '<br>SMTP server listening on port ' + self.smtpport
 			+ '<br><br>API'
 			+ '<br><a href="/api/email">All Emails ( /api/email )</a>'
 			+ '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
-			+ '<br><a href="/api/email/1">Email #1</a> ( /api/email/1 )'
-			+ '<br><a href="/api/email/2">Email #2</a> ( /api/email/2 )'
-			+ '</body></html>'
-			)
+			// + '<br><a href="/api/email/1">Email #1</a> ( /api/email/1 )'
+			// + '<br><a href="/api/email/2">Email #2</a> ( /api/email/2 )'
+			);
+
+		function render_item(item) {
+			return '<br><a href="/api/email/' + _.escape(item.id) + '">'
+				// + JSON.stringify(item)
+				+ 'Email #' + _.escape(item.id) + ' created at: ' + _.escape(new Date(item.created_at))
+				+ '</a>';
+		}
+
+		self.db.select('*').from('emails')
+		.then(function (resp) {
+			resp.forEach(self.deserialize);
+			resp.forEach(function (item) {
+				res.write(render_item(item));
+			});
+		});
+
+		self.on('email', function (item) {
+			res.write(render_item(item));
+		});
 	});
 
 	app.get('/api/email', function(req, res, next){
