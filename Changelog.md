@@ -1,3 +1,7 @@
+2.0.1
+======
+* Don't fail at startup if there is no database
+
 2.0.0 
 ======
 

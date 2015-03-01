@@ -39,8 +39,10 @@ RestSmtpSink.prototype.validateFile = function() {
 RestSmtpSink.prototype.start = function() {
 	var self = this;
 
-	return self.validateFile().bind(self)
-	.then(self.createSchema)
+	// return self.validateFile().bind(self)
+	// .then(self.createSchema)
+
+	return self.createSchema()
 	.then(function () {
 		self.createSmtpSever();
 		self.smtp.listen(self.smtpport);
