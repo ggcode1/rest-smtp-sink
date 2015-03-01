@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+var casual = require('casual');
 var pony = require('pony');
  
 var mail = pony({
@@ -10,5 +11,5 @@ var mail = pony({
     to : 'me@example.com',
 });
 mail.setHeader('content-type', 'text/plain');
-mail.setHeader('subject', 'greetings');
-mail.end('oh hello');
+mail.setHeader('subject', casual.sentence);
+mail.end(casual.sentences(7));
