@@ -7,9 +7,9 @@ var pony = require('pony');
 var mail = pony({
     host : 'localhost',
     port : 2525,
-    from : 'you@example.com',
-    to : 'me@example.com',
+    from : casual.email,
+    to : casual.email
 });
 mail.setHeader('content-type', 'text/plain');
-mail.setHeader('subject', casual.sentence);
+mail.setHeader('subject', casual.catch_phrase);
 mail.end(casual.sentences(7));
