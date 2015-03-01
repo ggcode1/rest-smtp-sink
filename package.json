@@ -17,11 +17,15 @@
   },
   "homepage": "https://github.com/llambda/rest-smtp-sink",
   "dependencies": {
+    "commander": "^2.6.0",
     "compression": "^1.4.1",
     "express": "^4.11.2",
     "knex": "^0.7.3",
     "mailparser": "^0.4.8",
     "simplesmtp": "^0.3.34",
     "sqlite3": "^3.0.5"
+  },
+  "bin": {
+    "rest-smtp-sink": "./cli.js"
   }
 }
