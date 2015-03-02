@@ -1,3 +1,11 @@
+2.1.0
+======
+* Fix to and from fields not getting recorded.
+* Continually update main page as emails come in
+* Display emails in a table
+* Added more tests
+* Bump dependencies
+
 2.0.1
 ======
 * Don't fail at startup if there is no database
