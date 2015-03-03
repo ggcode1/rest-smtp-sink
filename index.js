@@ -25,27 +25,8 @@ function RestSmtpSink(options) {
 	this.setMaxListeners(Infinity);
 }
 
-RestSmtpSink.prototype.validateFile = function() {
-	var self = this;
-
-	return fs.openAsync(self.filename, 'r')
-	.then(function (fd) {
-		var buf = new Buffer(6);
-		return fs.readAsync(fd, buf, 0, 6, 0)
-		.then(function (obj) {
-			// obj of [bytesRead, buffer]
-			if (0 !== obj[1].compare(new Buffer('SQLite'))) {
-				throw new Error('File does not appear to be a SQLite database, aborting');
-			}
-		})
-	})
-}
-
 RestSmtpSink.prototype.start = function() {
 	var self = this;
-
-	// return self.validateFile().bind(self)
-	// .then(self.createSchema)
 
 	return self.createSchema()
 	.then(function () {
@@ -70,14 +51,8 @@ RestSmtpSink.prototype.createSchema = function () {
 	return self.db.schema.createTable('emails', function (table) {
 		table.increments();
 		table.timestamps();
-		table.json('html');
-		table.json('text');
-		table.json('headers');
-		table.json('subject');
-		table.json('messageId');
-		table.json('priority');
-		table.json('from');
-		table.json('to');
+		['html','text','headers','subject','messageId','priority','from','to']
+		.map(function (id) { table.json(id) });
 	})
 	.catch(function (err) {
 		if (err.message.includes('SQLITE_ERROR: table "emails" already exists')) {
@@ -117,10 +92,9 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 				'to': JSON.stringify(connection.to)
 			})
 			.then(function (record) {
-				// mail_object.id = record[0]; // primary key from DB
 				self.db('emails')
 				.select('*')
-				.where('id', '=', record[0])
+				.where('id', '=', record[0]) // primary key from DB
 				.then(function (mail) {
 					self.emit('email', self.deserialize(mail[0]));
 				});
@@ -177,8 +151,6 @@ RestSmtpSink.prototype.createWebServer = function () {
 			+ '<br><a href="/api/email">All Emails ( /api/email )</a>'
 			+ '<br><a href="/api/email">All Email, streamed, may load faster ( /api/email/stream )</a>'
 			+ '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
-			// + '<br><a href="/api/email/1">Email #1</a> ( /api/email/1 )'
-			// + '<br><a href="/api/email/2">Email #2</a> ( /api/email/2 )'
 			);
 
 		res.write('<table><thead><tr><td>ID<td>To<td>From<td>Subject<td>Date</thead><tbody>');
