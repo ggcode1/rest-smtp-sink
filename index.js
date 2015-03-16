@@ -153,12 +153,14 @@ RestSmtpSink.prototype.createWebServer = function () {
 			+ '<br><a href="/api/email/latest">Last received Email</a> ( /api/email/latest )'
 			);
 
-		res.write('<table><thead><tr><td>ID<td>To<td>From<td>Subject<td>Date</thead><tbody>');
+		res.write('<table><thead><tr><td>ID<td>Del<td>Purge<td>To<td>From<td>Subject<td>Date</thead><tbody>');
 
 		res.flush(); // make sure the above data gets sent, so it doesn't look like the page is hanging.
 
 		function render_item(item) {
 			return '<tr><td><a href="/api/email/' + _.escape(item.id) + '">' + _.escape(item.id) + '</a>'
+			        +  '<td><a href="/api/email/delete/' + _.escape(item.id) + '"> Del </a>'
+			        +  '<td><a href="/api/email/purge/' + _.escape(item.id) + '"> Purge </a>'
 				+ '<td>' + _.escape(item.to)
 				+ '<td>' + _.escape(item.from)
 				+ '<td>' + _.escape(item.subject)
@@ -229,6 +231,38 @@ RestSmtpSink.prototype.createWebServer = function () {
 				res.status(404).send('Not found')
 			} else {
 				res.json(self.deserialize(resp[0]));
+			}
+		})
+		.catch(next)
+	});
+
+	app.get('/api/email/delete/:id', function(req, res, next){
+		self.db.select('*').from('emails')
+		.where('id', '=', req.params.id)
+		.then(function (resp) {
+			if (resp.length < 1) {
+				res.status(404).send('Not found')
+			} else {
+                                self.db('emails')
+                                  .where('id', '=', req.params.id)
+                                  .del().exec(function(err,resp) {console.log(resp)});
+				res.status(200).send('Removed');
+			}
+		})
+		.catch(next)
+	});
+
+	app.get('/api/email/purge/:id', function(req, res, next){
+		self.db.select('*').from('emails')
+		.where('id', '<=', req.params.id)
+		.then(function (resp) {
+			if (resp.length < 1) {
+				res.status(404).send('Not found')
+			} else {
+                                self.db('emails')
+                                  .where('id', '<=', req.params.id)
+                                  .del().exec(function(err,resp) {console.log(resp)});
+				res.status(200).send('Purged records older than ' + req.params.id);
 			}
 		})
 		.catch(next)
