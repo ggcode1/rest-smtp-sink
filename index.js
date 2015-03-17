@@ -55,7 +55,7 @@ RestSmtpSink.prototype.createSchema = function () {
 		.map(function (id) { table.json(id) });
 	})
 	.catch(function (err) {
-		if (err.message.includes('SQLITE_ERROR: table "emails" already exists')) {
+		if (~err.message.indexOf('SQLITE_ERROR: table "emails" already exists')) {
 			self.emit('info', err.message);
 		} else {
 			self.emit('error', err);
