@@ -1,3 +1,8 @@
+2.1.1
+======
+* Add purge and delete (Garth Johnson) #3
+* Fix startup fails on node 0.10 (Garth Johnson) #1
+
 2.1.0
 ======
 * Fix to and from fields not getting recorded.
