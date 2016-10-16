@@ -1,6 +1,9 @@
 'use strict';
 
 var BPromise = require('bluebird');
+BPromise.config({
+	longStackTraces: true
+})
 var simplesmtp = require('simplesmtp');
 var fs = BPromise.promisifyAll(require('fs'));
 var compress = require('compression');
