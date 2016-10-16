@@ -45,6 +45,7 @@ RestSmtpSink.prototype.createSchema = function() {
 
     self.db = knex({
         client: 'sqlite3',
+		useNullAsDefault: true,
         connection: {
             filename: self.filename
         }
