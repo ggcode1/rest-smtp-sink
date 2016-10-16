@@ -1,6 +1,6 @@
 {
   "name": "rest-smtp-sink",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Similar to FakeSMTP, rest-smtp-sink is a SMTP server and web server. It stores e-mails it receives in a SQLite database, and serves them via its own web server, with a RESTful API.",
   "main": "index.js",
   "scripts": {
