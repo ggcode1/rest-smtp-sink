@@ -1,18 +1,15 @@
 'use strict';
-
-var BPromise = require('bluebird');
-BPromise.config({
-	longStackTraces: true
-})
-var simplesmtp = require('simplesmtp');
-var fs = BPromise.promisifyAll(require('fs'));
-var compress = require('compression');
-var MailParser = require('mailparser').MailParser;
-var EventEmitter = require('events').EventEmitter;
-var knex = require('knex');
-var inherits = require('inherits');
-var _ = require('lodash');
-var JSONStream = require('JSONStream');
+const simplesmtp = require('simplesmtp');
+const promisifyAll = require('es6-promisify-all');
+const fs = promisifyAll(require('fs'));
+const compress = require('compression');
+const MailParser = require('mailparser').MailParser;
+const EventEmitter = require('events').EventEmitter;
+const knex = require('knex');
+const inherits = require('inherits');
+const _ = require('lodash');
+const JSONStream = require('JSONStream');
+const asyncHandler = require('express-async-handler');
 
 module.exports = RestSmtpSink;
 
@@ -20,7 +17,7 @@ inherits(RestSmtpSink, EventEmitter);
 
 function RestSmtpSink(options) {
 	EventEmitter.call(this);
-	var self = this;
+	const self = this;
 	self.smtpport = options.smtp || 2525;
 	self.httpport = options.listen || 2526;
 	self.filename = options.file || 'rest-smtp-sink.sqlite';
@@ -28,61 +25,57 @@ function RestSmtpSink(options) {
 	this.setMaxListeners(Infinity);
 }
 
-RestSmtpSink.prototype.start = function() {
-	var self = this;
+RestSmtpSink.prototype.start = async function() {
+	const self = this;
 
-	return self.createSchema()
-	.then(function() {
-		self.createSmtpSever();
-		self.smtp.listen(self.smtpport);
-		self.emit('info', 'SMTP server listening on port ' + self.smtpport);
+	await this.createSchema();
+	self.createSmtpSever();
+	self.smtp.listen(self.smtpport);
+	self.emit('info', 'SMTP server listening on port ' + self.smtpport);
 
-		self.server = self.createWebServer().listen(self.httpport, function() {
-			self.emit('info', 'HTTP server listening on port ' + self.httpport);
-		});
-	})
+	self.server = self.createWebServer().listen(self.httpport, function() {
+		self.emit('info', 'HTTP server listening on port ' + self.httpport);
+	});
 }
 
-RestSmtpSink.prototype.createSchema = function() {
-	var self = this;
+RestSmtpSink.prototype.createSchema = async function() {
+	const self = this;
 
 	self.db = knex({
 		client: 'sqlite3',
 		useNullAsDefault: true,
 		connection: {
 			filename: self.filename
-		}
+		},
 	});
 
-	return self.db.schema.createTable('emails', function(table) {
-		table.increments();
-		table.timestamps();
-		['html', 'text', 'headers', 'subject', 'messageId', 'priority', 'from', 'to']
-		.map(function(id) {
-			table.json(id)
+	try {
+		await self.db.schema.createTable('emails', function(table) {
+			table.increments();
+			table.timestamps();
+			['html', 'text', 'headers', 'subject', 'messageId', 'priority', 'from', 'to']
+			.map(id => table.json(id));
 		});
-	})
-	.catch(function(err) {
+	} catch (err) {
 		self.emit('info', err.message);
-	})
+	}
 }
 
 RestSmtpSink.prototype.createSmtpSever = function() {
-	var self = this;
+	const self = this;
 
 	self.smtp = simplesmtp.createServer({
 		enableAuthentication: true,
 		requireAuthentication: false,
 		SMTPBanner: 'rest-smtp-sink',
-		disableDNSValidation: true
+		disableDNSValidation: true,
 	});
 
 	self.smtp.on("startData", function(connection) {
 
 		connection.mailparser = new MailParser();
-		connection.mailparser.on("end", function(mail_object) {
-			self.db('emails')
-			.insert({
+		connection.mailparser.on("end", async function (mail_object) {
+			const record = await self.db('emails').insert({
 				"created_at": new Date(),
 				"updated_at": new Date(),
 				'html': JSON.stringify(mail_object.html),
@@ -93,17 +86,14 @@ RestSmtpSink.prototype.createSmtpSever = function() {
 				'priority': JSON.stringify(mail_object.priority),
 				'from': JSON.stringify(connection.from),
 				'to': JSON.stringify(connection.to)
-			})
-			.then(function(record) {
-				self.db('emails')
-				.select('*')
-				.where('id', '=', record[0]) // primary key from DB
-				.then(function(mail) {
-					self.emit('email', self.deserialize(mail[0]));
-				});
-
-				connection.donecallback(null, record);
 			});
+
+			const mail = await self.db('emails')
+				.select('*')
+				.where('id', '=', record[0]); // primary key from DB
+				
+			self.emit('email', self.deserialize(mail[0]));
+			connection.donecallback(null, record);
 		});
 	});
 
@@ -131,13 +121,13 @@ RestSmtpSink.prototype.deserialize = function(o) {
 }
 
 RestSmtpSink.prototype.createWebServer = function() {
-	var self = this;
-	var express = require('express');
-	var app = express();
+	const self = this;
+	const express = require('express');
+	const app = express();
 
 	app.use(compress());
 
-	app.get('/', function(req, res) {
+	app.get('/', asyncHandler(async (req, res, next) => {
 
 		res.set('Content-Type', 'text/html');
 
@@ -156,16 +146,14 @@ RestSmtpSink.prototype.createWebServer = function() {
 			return '<tr><td><a href="/api/email/' + _.escape(item.id) + '">' + _.escape(item.id) + '</a>' + '<td><a href="/api/email/delete/' + _.escape(item.id) + '"> Del </a>' + '<td><a href="/api/email/purge/' + _.escape(item.id) + '"> Purge </a>' + '<td>' + _.escape(item.to) + '<td>' + _.escape(item.from) + '<td>' + _.escape(item.subject) + '<td>' + _.escape(new Date(item.created_at))
 		}
 
-		self.db.select('*').from('emails')
-		.then(function(resp) {
-			resp.forEach(self.deserialize);
-			resp.forEach(function(item) {
-				res.write(render_item(item));
-				res.flush();
-			});
+		const resp = await self.db.select('*').from('emails');
+		resp.forEach(self.deserialize);
+		resp.forEach(function(item) {
+			res.write(render_item(item));
+			res.flush();
 		});
 
-		var listener = function(item) {
+		const listener = function(item) {
 			res.write(render_item(item));
 			res.flush();
 		}
@@ -175,19 +163,17 @@ RestSmtpSink.prototype.createWebServer = function() {
 		req.on('close', function() {
 			self.removeListener('email', listener);
 		})
-	});
+	}));
 
-	app.get('/api/email', function(req, res, next) {
-		self.db.select('*').from('emails')
-		.then(function(resp) {
-			resp.forEach(self.deserialize);
-			res.json(resp);
-		})
-		.catch(next)
-	});
+	app.get('/api/email', asyncHandler(async (req, res, next) => {
+		const resp = await self.db.select('*').from('emails');
+		resp.forEach(self.deserialize);
+		res.json(resp);
+	}));
+	
 
-	app.get('/api/email/stream', function(req, res, next) {
-		var stream = self.db.select('*').from('emails').stream()
+	app.get('/api/email/stream', asyncHandler(async (req, res, next) => {
+		const stream = self.db.select('*').from('emails').stream()
 
 		stream.pipe(JSONStream.stringify('[',
 		',',
@@ -196,76 +182,45 @@ RestSmtpSink.prototype.createWebServer = function() {
 		stream.on('end', function() {
 			res.end();
 		});
-	});
+	}));
 
-	app.get('/api/email/latest', function(req, res, next) {
-		self.db.select('*').from('emails')
-		.orderBy('id', 'desc')
-		.limit(1)
-		.then(function(resp) {
-			if (resp.length < 1) {
-				res.status(404).send('Not found')
-			} else {
-				res.json(self.deserialize(resp[0]));
-			}
-		})
-		.catch(next)
-	});
+	app.get('/api/email/latest', asyncHandler(async (req, res, next) => {
+		const resp = await self.db.select('*').from('emails').orderBy('id', 'desc').limit(1);
+		if (resp.length < 1) {
+			res.status(404).send('Not found')
+		} else {
+			res.json(self.deserialize(resp[0]));
+		}
+	}));
 
-	app.get('/api/email/:id', function(req, res, next) {
-		self.db.select('*').from('emails')
-		.where('id', '=', req.params.id)
-		.then(function(resp) {
-			if (resp.length < 1) {
-				res.status(404).send('Not found')
-			} else {
-				res.json(self.deserialize(resp[0]));
-			}
-		})
-		.catch(next)
-	});
+	app.get('/api/email/:id', asyncHandler(async (req, res, next) => {
+		const resp = await self.db.select('*').from('emails').where('id', '=', req.params.id);	
+		if (resp.length < 1) {
+			res.status(404).send('Not found')
+		} else {
+			res.json(self.deserialize(resp[0]));
+		}
+	}));
 
-	app.get('/api/email/delete/:id', function(req, res, next) {
-		self.db.select('*').from('emails')
-		.where('id', '=', req.params.id)
-		.then(function(resp) {
-			if (resp.length < 1) {
-				res.status(404).send('Not found')
-			} else {
-				self.db('emails')
-				.where('id', '=', req.params.id)
-				.del()
-				.then(function () {
-					res.status(200).send('Removed');
-				})
-				.catch(function (err) {
-					res.status(500).send(err);
-				})
-			}
-		})
-		.catch(next)
-	});
+	app.get('/api/email/delete/:id', asyncHandler(async (req, res, next) => {
+		const resp = await self.db.select('*').from('emails').where('id', '=', req.params.id);
+		if (resp.length < 1) {
+			res.status(404).send('Not found')
+		} else {
+			await self.db('emails').where('id', '=', req.params.id).del();
+			res.status(200).send('Removed');
+		}
+	}));
 
-	app.get('/api/email/purge/:id', function(req, res, next) {
-		self.db.select('*').from('emails')
-		.where('id', '<=', req.params.id)
-		.then(function(resp) {
-			if (resp.length < 1) {
-				res.status(404).send('Not found')
-			} else {
-				self.db('emails')
-				.where('id', '<=', req.params.id)
-				.del()
-				.then(function () {
-					res.status(200).send('Purged records older than ' + req.params.id);
-				})
-				.catch(function (err) {
-					res.status(500).send(err);
-				})
-			}
-		})
-		.catch(next)
-	});
+	app.get('/api/email/purge/:id', asyncHandler(async (req, res, next) => {
+		const resp = await self.db.select('*').from('emails').where('id', '<=', req.params.id)
+		if (resp.length < 1) {
+			res.status(404).send('Not found')
+		} else {
+			await self.db('emails').where('id', '<=', req.params.id).del();
+			res.status(200).send('Purged records older than ' + req.params.id);
+		}
+	}));
 
 	return app;
 }
