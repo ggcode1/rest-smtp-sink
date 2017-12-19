@@ -24,7 +24,7 @@
     "event-loop-monitor": "^0.2.0",
     "express": "^4.14.0",
     "inherits": "^2.0.3",
-    "knex": "^0.12.5",
+    "knex": "^0.14.2  ",
     "lodash": "^4.16.4",
     "mailparser": "^0.6.1",
     "simplesmtp": "^0.3.35",
