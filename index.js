@@ -63,12 +63,7 @@ RestSmtpSink.prototype.createSchema = function() {
 		});
 	})
 	.catch(function(err) {
-		if (~err.message.indexOf('SQLITE_ERROR: table "emails" already exists')) {
-			self.emit('info', err.message);
-		} else {
-			self.emit('error', err);
-			throw err;
-		}
+		self.emit('info', err.message);
 	})
 }
 
